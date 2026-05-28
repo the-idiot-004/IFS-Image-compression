@@ -14,10 +14,8 @@
     ifsResult:    null,   // output of IFS.encode()
     frames:       [],     // ImageData[] — one per iteration
     psnrs:        [],     // number[]
-    convergedAt:  null,
     currentFrame: 0,
     animTimer:    null,
-    animDir:      1,      // +1 forward / -1 backward (for bounce)
     canvasSize:   256,
   };
 
@@ -64,23 +62,7 @@
     const el = document.querySelector('input[name="stride"]:checked');
     return el ? parseInt(el.value) : 2;
   }
-  function getBrightMode() {
-    const el = document.querySelector('input[name="bright"]:checked');
-    return el ? el.value : 'full';
-  }
   function getMaxIter() { return Math.max(1, parseInt(maxIterNum.value) || 20); }
-  function getConvThresh() {
-    const el = document.querySelector('input[name="conv"]:checked');
-    return el ? parseFloat(el.value) : 0.01;
-  }
-  function getAnimMode() {
-    const el = document.querySelector('input[name="animMode"]:checked');
-    return el ? el.value : 'forward';
-  }
-  function getBlendAlpha() {
-    const el = document.querySelector('input[name="blend"]:checked');
-    return el ? parseFloat(el.value) : 0;
-  }
   function getAnimSpeed() { return parseInt(animSpeedSlide.value); }
 
   function drawFrameToCanvas(idx) {
@@ -88,18 +70,6 @@
     const ctx = iterCanvas.getContext('2d');
     ctx.clearRect(0, 0, iterCanvas.width, iterCanvas.height);
     ctx.putImageData(state.frames[idx], 0, 0);
-
-    // Optional ghost overlay of target
-    const alpha = getBlendAlpha();
-    if (alpha > 0 && state.tgtData) {
-      // draw tgt to offscreen then blit with alpha
-      const off = document.createElement('canvas');
-      off.width = iterCanvas.width; off.height = iterCanvas.height;
-      off.getContext('2d').putImageData(state.tgtData, 0, 0);
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(off, 0, 0);
-      ctx.globalAlpha = 1;
-    }
 
     // update tag & slider
     iterTag.textContent = `it. ${idx}`;
@@ -160,7 +130,7 @@
 
   // Drag-and-drop support
   [srcZone, tgtZone].forEach((zone, i) => {
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#378add'; });
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#00d4ff'; });
     zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
     zone.addEventListener('drop', e => {
       e.preventDefault();
@@ -184,7 +154,6 @@
       state.ifsResult = await IFS.encode(state.tgtData, {
         blockSize:  getBlockSize(),
         stride:     getStride(),
-        brightMode: getBrightMode(),
         onProgress: (frac, msg) => setProgress(frac * 0.6, msg),
       });
 
@@ -192,16 +161,14 @@
       setProgress(0.6, 'Running iterations...');
       const result = await IFS.iterate(state.srcData, state.tgtData, state.ifsResult, {
         maxIter:    getMaxIter(),
-        convThresh: getConvThresh(),
-        onProgress: (it, p, converged) => {
+        onProgress: (it, p) => {
           setProgress(0.6 + 0.4 * it / getMaxIter(),
-            `Iteration ${it} — PSNR ${p.toFixed(2)} dB${converged ? ' ✓ converged' : ''}`);
+            `Iteration ${it} — PSNR ${p.toFixed(2)} dB`);
         },
       });
 
-      state.frames      = result.frames;
-      state.psnrs       = result.psnrs;
-      state.convergedAt = result.convergedAt;
+      state.frames = result.frames;
+      state.psnrs  = result.psnrs;
 
       // Update iter canvas & controls
       iterCanvas.width  = state.canvasSize;
@@ -230,7 +197,7 @@
   function showMetrics() {
     const t = state.ifsResult;
     const finalPSNR = state.psnrs[state.psnrs.length - 1];
-    const W = t.W, H = t.H, bs = t.blockSize;
+    const W = t.W, H = t.H;
     const origBytes = W * H * 3;
     const encBytes  = t.transforms.length * (4 * 2 + 2 * 4 + 1); // 2 ints, 2 floats, blockSize
 
@@ -238,7 +205,6 @@
     $('mIter').textContent     = state.frames.length - 1;
     $('mPSNR').textContent     = finalPSNR.toFixed(1) + ' dB';
     $('mRatio').textContent    = (origBytes / encBytes).toFixed(1) + '×';
-    $('mConv').textContent     = state.convergedAt !== null ? state.convergedAt : '—';
     $('mEncTime').textContent  = t.encodeTime.toFixed(1);
     metricsRow.style.display   = 'flex';
   }
@@ -282,7 +248,7 @@
     });
   }
 
-  /* ── animation ───────────────────────────────────── */
+  /* ── animation (forward only) ────────────────────── */
 
   function stopAnim() {
     if (state.animTimer) { clearInterval(state.animTimer); state.animTimer = null; }
@@ -293,25 +259,13 @@
     if (state.animTimer) { stopAnim(); return; }
     if (!state.frames.length) return;
 
-    const mode  = getAnimMode();
     const delay = getAnimSpeed();
-    state.animDir = 1;
     state.currentFrame = 0;
     animBtn.textContent = '⏹ Stop';
 
     state.animTimer = setInterval(() => {
-      let next = state.currentFrame + state.animDir;
-
-      if (mode === 'forward') {
-        if (next >= state.frames.length) { stopAnim(); return; }
-      } else if (mode === 'bounce') {
-        if (next >= state.frames.length) { state.animDir = -1; next = state.frames.length - 2; }
-        else if (next < 0)              { state.animDir =  1; next = 1; }
-      } else if (mode === 'pingpong') {
-        if (next >= state.frames.length) { state.animDir = -1; next = state.frames.length - 2; }
-        else if (next < 0)              { stopAnim(); return; }
-      }
-
+      const next = state.currentFrame + 1;
+      if (next >= state.frames.length) { stopAnim(); return; }
       drawFrameToCanvas(next);
     }, delay);
   });
@@ -364,7 +318,7 @@
     stopAnim();
     state.srcData = null; state.tgtData = null;
     state.ifsResult = null; state.frames = []; state.psnrs = [];
-    state.currentFrame = 0; state.convergedAt = null;
+    state.currentFrame = 0;
 
     [srcCanvas, tgtCanvas, iterCanvas].forEach(cv => {
       cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
@@ -382,12 +336,15 @@
     encodeBtn.disabled = true;
     animBtn.disabled = true; stepFwdBtn.disabled = true;
     stepBwdBtn.disabled = true; exportBtn.disabled = true;
+
+    // Redraw placeholder
+    drawPlaceholder();
   });
 
   function clearResults() {
     stopAnim();
     state.frames = []; state.psnrs = []; state.ifsResult = null;
-    state.currentFrame = 0; state.convergedAt = null;
+    state.currentFrame = 0;
     thumbStrip.innerHTML = '';
     metricsRow.style.display = 'none';
     iterCanvas.getContext('2d').clearRect(0, 0, iterCanvas.width, iterCanvas.height);
@@ -419,15 +376,16 @@
   });
 
   // Init iter canvas with placeholder
-  iterCanvas.classList.add('visible');
-  (() => {
+  function drawPlaceholder() {
+    iterCanvas.classList.add('visible');
     const ctx = iterCanvas.getContext('2d');
-    ctx.fillStyle = '#e8e7e2';
+    ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, iterCanvas.width, iterCanvas.height);
-    ctx.fillStyle = '#999993';
+    ctx.fillStyle = '#3a3a5c';
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('output appears here', 128, 135);
-  })();
+    ctx.fillText('output appears here', iterCanvas.width / 2, iterCanvas.height / 2 + 5);
+  }
+  drawPlaceholder();
 
 })();

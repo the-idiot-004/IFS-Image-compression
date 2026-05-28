@@ -7,11 +7,93 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- Fractal background decoration -->
+<div class="bg-fractals" aria-hidden="true">
+  <svg class="bg-tri" viewBox="0 0 200 174">
+    <g>
+      <polygon points="100,0 200,174 0,174" stroke="#00d4ff" stroke-width="0.6" fill="none"/>
+      <polygon points="50,87 100,174 0,174" stroke="#00d4ff" stroke-width="0.5" fill="none"/>
+      <polygon points="150,87 200,174 100,174" stroke="#00d4ff" stroke-width="0.5" fill="none"/>
+      <polygon points="100,0 150,87 50,87" stroke="#00d4ff" stroke-width="0.5" fill="none"/>
+      <polygon points="25,130.5 50,174 0,174" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="75,130.5 100,174 50,174" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="50,87 75,130.5 25,130.5" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="125,130.5 150,174 100,174" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="175,130.5 200,174 150,174" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="150,87 175,130.5 125,130.5" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="75,43.5 100,87 50,87" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="125,43.5 150,87 100,87" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+      <polygon points="100,0 125,43.5 75,43.5" stroke="#a855f7" stroke-width="0.4" fill="none"/>
+    </g>
+  </svg>
+  <svg class="bg-tri right" viewBox="0 0 200 174">
+    <g>
+      <polygon points="100,0 200,174 0,174" stroke="#a855f7" stroke-width="0.6" fill="none"/>
+      <polygon points="50,87 100,174 0,174" stroke="#a855f7" stroke-width="0.5" fill="none"/>
+      <polygon points="150,87 200,174 100,174" stroke="#a855f7" stroke-width="0.5" fill="none"/>
+      <polygon points="100,0 150,87 50,87" stroke="#a855f7" stroke-width="0.5" fill="none"/>
+    </g>
+  </svg>
+</div>
+
 <div class="app">
+  <!-- Header -->
   <header>
-    <h1>Fractal IFS Image Compression</h1>
-    <p class="subtitle">Iterated Function System — encode a target image, iterate from any starting image to its attractor</p>
+    <div class="header-inner">
+      <div class="header-logo" aria-hidden="true">
+        <svg class="logo-svg" viewBox="0 0 44 38">
+          <polygon points="22,2 42,36 2,36" stroke="#00d4ff" stroke-width="1.4" fill="none"/>
+          <polygon points="12,19 22,36 2,36" stroke="#a855f7" stroke-width="1" fill="none"/>
+          <polygon points="32,19 42,36 22,36" stroke="#a855f7" stroke-width="1" fill="none"/>
+          <polygon points="22,2 32,19 12,19" stroke="#a855f7" stroke-width="1" fill="none"/>
+          <polygon points="17,27.5 22,36 12,36" stroke="#00d4ff" stroke-width="0.7" fill="none" opacity="0.7"/>
+          <polygon points="27,27.5 32,36 22,36" stroke="#00d4ff" stroke-width="0.7" fill="none" opacity="0.7"/>
+          <polygon points="22,19 27,27.5 17,27.5" stroke="#00d4ff" stroke-width="0.7" fill="none" opacity="0.7"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Fractal IFS Image Compression</h1>
+        <p class="subtitle">Iterated Function System · encode a target, iterate from any starting image to its attractor</p>
+      </div>
+    </div>
   </header>
+
+  <!-- Theory Section -->
+  <section class="theory-section">
+    <details class="theory-box" open>
+      <summary class="theory-summary">
+        <span class="theory-icon">∞</span>
+        <span class="theory-title">How Fractal IFS Compression Works</span>
+        <span class="theory-chevron">▾</span>
+      </summary>
+      <div class="theory-body">
+        <div class="theory-grid">
+          <div class="theory-card">
+            <div class="theory-card-icon">▲</div>
+            <h4>Contractive Maps</h4>
+            <p>An IFS is a finite set of contractive affine transformations. "Contractive" means each map <em>shrinks</em> distances in image space — guaranteed here by 2× spatial downsampling of domain blocks. Banach's Fixed Point Theorem then guarantees convergence from <strong>any</strong> starting image.</p>
+          </div>
+          <div class="theory-card">
+            <div class="theory-card-icon">▦</div>
+            <h4>Encoding</h4>
+            <p>The target is tiled into small <em>range blocks</em> (e.g. 4×4 px). For each we search a pool of <em>domain blocks</em> — patches twice as large, averaged down to match size. We store only: which domain block + brightness scale <em>s</em> and offset <em>o</em> — not the pixels themselves.</p>
+          </div>
+          <div class="theory-card">
+            <div class="theory-card-icon">◎</div>
+            <h4>The Fixed-Point Attractor</h4>
+            <p>The stored maps define a unique fixed point <code>A</code> in image space such that <code>W(A) = A</code>. Applying the IFS operator to the attractor reproduces it exactly. This attractor closely approximates the original target — that is the "compressed" image.</p>
+          </div>
+          <div class="theory-card">
+            <div class="theory-card-icon">↻</div>
+            <h4>Iteration / Decoding</h4>
+            <p>Start from <strong>any</strong> image x₀ — even a photo of Al Pacino. Apply transforms: x₁ = W(x₀), x₂ = W(x₁), … After a handful of iterations the sequence converges to the attractor, morphing entirely into the target (e.g. Monica Bellucci). No target pixels are stored.</p>
+          </div>
+        </div>
+        <p class="theory-footer">Based on Jacquin (1992) · 2× downsampling ensures |W(x)−W(y)| ≤ c|x−y| with c &lt; 1 for all images x, y · Banach's theorem gives unique convergence</p>
+      </div>
+    </details>
+  </section>
 
   <!-- Upload Row -->
   <section class="upload-row">
@@ -82,16 +164,17 @@
       </div>
 
       <div class="param-group">
-        <label>Brightness transform <span class="param-hint">per-block scale+offset fitting</span></label>
+        <label>Canvas size <span class="param-hint">image resize on upload</span></label>
         <div class="radio-row">
-          <label class="radio-opt"><input type="radio" name="bright" value="full" checked> Full (scale+offset)</label>
-          <label class="radio-opt"><input type="radio" name="bright" value="offset"> Offset only</label>
+          <label class="radio-opt"><input type="radio" name="canvSize" value="128"> 128</label>
+          <label class="radio-opt"><input type="radio" name="canvSize" value="256" checked> 256</label>
+          <label class="radio-opt"><input type="radio" name="canvSize" value="512"> 512</label>
         </div>
       </div>
     </div>
 
     <div class="dash-col">
-      <h3>Iteration controls</h3>
+      <h3>Iteration &amp; animation</h3>
       <div class="param-group">
         <label>Max iterations</label>
         <div style="display:flex;align-items:center;gap:8px">
@@ -105,48 +188,8 @@
       </div>
 
       <div class="param-group">
-        <label>Convergence threshold <span class="param-hint">stop early if ΔPSNR &lt; threshold</span></label>
-        <div class="radio-row">
-          <label class="radio-opt"><input type="radio" name="conv" value="0"> Off</label>
-          <label class="radio-opt"><input type="radio" name="conv" value="0.01" checked> 0.01 dB</label>
-          <label class="radio-opt"><input type="radio" name="conv" value="0.1"> 0.1 dB</label>
-          <label class="radio-opt"><input type="radio" name="conv" value="0.5"> 0.5 dB</label>
-        </div>
-      </div>
-
-      <div class="param-group">
-        <label>Canvas size <span class="param-hint">image resize on upload</span></label>
-        <div class="radio-row">
-          <label class="radio-opt"><input type="radio" name="canvSize" value="128"> 128</label>
-          <label class="radio-opt"><input type="radio" name="canvSize" value="256" checked> 256</label>
-          <label class="radio-opt"><input type="radio" name="canvSize" value="512"> 512</label>
-        </div>
-      </div>
-    </div>
-
-    <div class="dash-col">
-      <h3>Animation</h3>
-      <div class="param-group">
-        <label>Mode</label>
-        <div class="radio-row col">
-          <label class="radio-opt"><input type="radio" name="animMode" value="forward" checked> Forward (start → attractor)</label>
-          <label class="radio-opt"><input type="radio" name="animMode" value="bounce"> Bounce (↔ loop)</label>
-          <label class="radio-opt"><input type="radio" name="animMode" value="pingpong"> Ping-pong once</label>
-        </div>
-      </div>
-
-      <div class="param-group">
         <label>Frame delay (ms) <span id="speedDisp" class="param-val">150</span></label>
         <input type="range" id="animSpeed" min="30" max="800" step="10" value="150">
-      </div>
-
-      <div class="param-group">
-        <label>Overlay blend <span class="param-hint">show target ghosted over iteration</span></label>
-        <div class="radio-row">
-          <label class="radio-opt"><input type="radio" name="blend" value="0" checked> Off</label>
-          <label class="radio-opt"><input type="radio" name="blend" value="0.2"> 20%</label>
-          <label class="radio-opt"><input type="radio" name="blend" value="0.4"> 40%</label>
-        </div>
       </div>
     </div>
   </section>
@@ -184,10 +227,6 @@
     <div class="metric-card">
       <div class="metric-val" id="mRatio">—</div>
       <div class="metric-lbl">compression ratio</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-val" id="mConv">—</div>
-      <div class="metric-lbl">converged at iter</div>
     </div>
     <div class="metric-card">
       <div class="metric-val" id="mEncTime">—</div>
