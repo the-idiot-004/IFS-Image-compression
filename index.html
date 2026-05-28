@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal IFS Image Compression</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Fractal IFS Image Compression</h1>
+    <p class="subtitle">Iterated Function System — encode a target image, iterate from any starting image to its attractor</p>
+  </header>
+
+  <!-- Upload Row -->
+  <section class="upload-row">
+    <div class="img-panel" id="srcPanel">
+      <div class="panel-label">Starting image <span class="tag">your photo</span></div>
+      <div class="upload-zone" id="srcZone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16v-4m0 0V8m0 4H8m4 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+        <span>Upload image</span>
+        <span class="hint">will be grayscaled</span>
+      </div>
+      <canvas id="srcCanvas" width="256" height="256"></canvas>
+      <input type="file" id="srcFile" accept="image/*">
+    </div>
+
+    <div class="arrow-col">
+      <div class="arrow-icon">→</div>
+      <div class="arrow-label">IFS iteration</div>
+    </div>
+
+    <div class="img-panel" id="tgtPanel">
+      <div class="panel-label">Target image <span class="tag attractor">attractor</span></div>
+      <div class="upload-zone" id="tgtZone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>Upload image</span>
+        <span class="hint">IFS converges here</span>
+      </div>
+      <canvas id="tgtCanvas" width="256" height="256"></canvas>
+      <input type="file" id="tgtFile" accept="image/*">
+    </div>
+
+    <div class="arrow-col">
+      <div class="arrow-icon">≈</div>
+      <div class="arrow-label">after N iters</div>
+    </div>
+
+    <div class="img-panel">
+      <div class="panel-label">Current iteration <span class="tag result" id="iterTag">it. 0</span></div>
+      <canvas id="iterCanvas" width="256" height="256"></canvas>
+      <div class="iter-nav">
+        <button id="prevBtn" class="nav-btn" disabled>‹</button>
+        <span id="iterSliderWrap"><input type="range" id="iterSlider" min="0" max="0" value="0" disabled></span>
+        <button id="nextBtn" class="nav-btn" disabled>›</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <section class="dashboard">
+    <div class="dash-col">
+      <h3>Encoding parameters</h3>
+      <div class="param-group">
+        <label>Block size (px) <span class="param-hint">smaller = finer quality, slower</span></label>
+        <div class="radio-row" id="blockSizeRadio">
+          <label class="radio-opt"><input type="radio" name="bs" value="2"> 2</label>
+          <label class="radio-opt"><input type="radio" name="bs" value="4" checked> 4</label>
+          <label class="radio-opt"><input type="radio" name="bs" value="8"> 8</label>
+          <label class="radio-opt"><input type="radio" name="bs" value="16"> 16</label>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <label>Domain pool stride <span class="param-hint">step for 2×bs domain block sampling</span></label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="stride" value="2"> 2 (dense, slow)</label>
+          <label class="radio-opt"><input type="radio" name="stride" value="4" checked> 4 (balanced)</label>
+          <label class="radio-opt"><input type="radio" name="stride" value="8"> 8 (fast)</label>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <label>Brightness transform <span class="param-hint">per-block scale+offset fitting</span></label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="bright" value="full" checked> Full (scale+offset)</label>
+          <label class="radio-opt"><input type="radio" name="bright" value="offset"> Offset only</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-col">
+      <h3>Iteration controls</h3>
+      <div class="param-group">
+        <label>Max iterations</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="maxIter" min="1" max="500" step="1" value="20" style="flex:1">
+          <input type="number" id="maxIterNum" min="1" max="9999" value="20"
+                 style="width:64px;padding:4px 6px;border:0.5px solid var(--border-strong);
+                        border-radius:var(--radius-sm);background:var(--surface);
+                        color:var(--text);font-size:13px;text-align:center">
+        </div>
+        <span class="param-hint">slider up to 500; type any number for more</span>
+      </div>
+
+      <div class="param-group">
+        <label>Convergence threshold <span class="param-hint">stop early if ΔPSNR &lt; threshold</span></label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="conv" value="0"> Off</label>
+          <label class="radio-opt"><input type="radio" name="conv" value="0.01" checked> 0.01 dB</label>
+          <label class="radio-opt"><input type="radio" name="conv" value="0.1"> 0.1 dB</label>
+          <label class="radio-opt"><input type="radio" name="conv" value="0.5"> 0.5 dB</label>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <label>Canvas size <span class="param-hint">image resize on upload</span></label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="canvSize" value="128"> 128</label>
+          <label class="radio-opt"><input type="radio" name="canvSize" value="256" checked> 256</label>
+          <label class="radio-opt"><input type="radio" name="canvSize" value="512"> 512</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-col">
+      <h3>Animation</h3>
+      <div class="param-group">
+        <label>Mode</label>
+        <div class="radio-row col">
+          <label class="radio-opt"><input type="radio" name="animMode" value="forward" checked> Forward (start → attractor)</label>
+          <label class="radio-opt"><input type="radio" name="animMode" value="bounce"> Bounce (↔ loop)</label>
+          <label class="radio-opt"><input type="radio" name="animMode" value="pingpong"> Ping-pong once</label>
+        </div>
+      </div>
+
+      <div class="param-group">
+        <label>Frame delay (ms) <span id="speedDisp" class="param-val">150</span></label>
+        <input type="range" id="animSpeed" min="30" max="800" step="10" value="150">
+      </div>
+
+      <div class="param-group">
+        <label>Overlay blend <span class="param-hint">show target ghosted over iteration</span></label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="blend" value="0" checked> Off</label>
+          <label class="radio-opt"><input type="radio" name="blend" value="0.2"> 20%</label>
+          <label class="radio-opt"><input type="radio" name="blend" value="0.4"> 40%</label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action bar -->
+  <section class="action-bar">
+    <button id="encodeBtn" class="btn primary" disabled>⚙ Encode IFS</button>
+    <button id="animBtn" class="btn" disabled>▶ Animate</button>
+    <button id="stepFwdBtn" class="btn" disabled>Step →</button>
+    <button id="stepBwdBtn" class="btn" disabled>← Step</button>
+    <button id="exportBtn" class="btn" disabled>↓ Export frame</button>
+    <button id="resetBtn" class="btn danger">✕ Reset</button>
+  </section>
+
+  <!-- Progress -->
+  <section class="progress-section" id="progressSection" style="display:none">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">Encoding...</div>
+  </section>
+
+  <!-- Metrics -->
+  <section class="metrics-row" id="metricsRow" style="display:none">
+    <div class="metric-card">
+      <div class="metric-val" id="mBlocks">—</div>
+      <div class="metric-lbl">IFS transforms</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" id="mIter">—</div>
+      <div class="metric-lbl">iterations run</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" id="mPSNR">—</div>
+      <div class="metric-lbl">PSNR (dB)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" id="mRatio">—</div>
+      <div class="metric-lbl">compression ratio</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" id="mConv">—</div>
+      <div class="metric-lbl">converged at iter</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" id="mEncTime">—</div>
+      <div class="metric-lbl">encode time (s)</div>
+    </div>
+  </section>
+
+  <!-- Thumbnail strip -->
+  <section class="thumb-strip" id="thumbStrip"></section>
+</div>
+<script src="ifs.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
