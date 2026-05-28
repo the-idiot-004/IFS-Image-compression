@@ -146,14 +146,13 @@ window.IFS = (() => {
    * @param {object}    opts
    *   blockSize   {number}  — range block size (bs); domain blocks are 2×bs
    *   stride      {number}  — domain sampling stride (applied to 2×bs grid)
-   *   brightMode  {string}  — 'full' | 'offset'
    *   onProgress  {fn}      — (fraction, message) => void
    * @returns Promise<{ transforms, W, H, blockSize, encodeTime }>
    */
   async function encode(tgtImgData, opts = {}) {
     const bs     = opts.blockSize  ?? 4;
     const stride = opts.stride     ?? 4;   // default stride larger since pool is dense
-    const mode   = opts.brightMode ?? 'full';
+    const mode   = 'full';                  // always use scale+offset brightness fit
     const onProg = opts.onProgress ?? (() => {});
 
     const { g, W, H } = toGray(tgtImgData);
@@ -267,14 +266,12 @@ window.IFS = (() => {
    * @param {object}    ifsResult    — from encode()
    * @param {object}    opts
    *   maxIter     {number}  — hard cap on iterations
-   *   convThresh  {number}  — stop if ΔPSNR < this (0 = off)
-   *   onProgress  {fn}      — (iter, psnr, converged) => void
-   * @returns Promise<{ frames, psnrs, convergedAt }>
+   *   onProgress  {fn}      — (iter, psnr) => void
+   * @returns Promise<{ frames, psnrs }>
    */
   async function iterate(srcImgData, tgtImgData, ifsResult, opts = {}) {
-    const maxIter    = opts.maxIter    ?? 20;
-    const convThresh = opts.convThresh ?? 0;
-    const onProg     = opts.onProgress ?? (() => {});
+    const maxIter = opts.maxIter    ?? 20;
+    const onProg  = opts.onProgress ?? (() => {});
 
     const { transforms, W, H } = ifsResult;
     const { g: tgtGray } = toGray(tgtImgData);
@@ -286,27 +283,18 @@ window.IFS = (() => {
 
     const frames = [grayToImageData(srcGray, W, H, octx)];
     const psnrs  = [psnr(srcGray, tgtGray)];
-    let convergedAt = null;
     let cur = srcGray;
-    let prevP = psnrs[0];
 
     for (let it = 1; it <= maxIter; it++) {
       cur = iterateOnce(cur, W, H, transforms);
       const p = psnr(cur, tgtGray);
       frames.push(grayToImageData(cur, W, H, octx));
       psnrs.push(p);
-
-      const delta = Math.abs(p - prevP);
-      const converged = convThresh > 0 && delta < convThresh && it > 3;
-      onProg(it, p, converged);
-      if (converged && convergedAt === null) convergedAt = it;
-      prevP = p;
-
+      onProg(it, p);
       await yieldToUI();
-      if (converged && convThresh > 0) break;
     }
 
-    return { frames, psnrs, convergedAt };
+    return { frames, psnrs };
   }
 
   /* ─────────────────────────────────────────────────────
